@@ -38,21 +38,31 @@ static void send_file_name(struct rdma_cm_id *id);
 
 static void write_remote(struct rdma_cm_id *id, uint32_t len);
 
-//static void send_next_chunk(struct rdma_cm_id *id);
+static void send_next_chunk(struct rdma_cm_id *id);
+
 static void send_next_chunk_origin(struct rdma_cm_id *id);
 
 static void usage();
 
 #define MAX_FILE_NUMBER 10240
+
 #define FILE_NAME_LENGTH 256
+
+// local directory's send files name
 char files[MAX_FILE_NUMBER][FILE_NAME_LENGTH];
+
+// preprocessiong get remote files name
 char target_files[MAX_FILE_NUMBER][FILE_NAME_LENGTH];
 
-static int files_count = 0;
+// preprocessiong get local files type
 short file_or_dir[MAX_FILE_NUMBER];
+
+static int files_count = 0;
+
 int current_index = 0;
 
 static void read_dir(char *dir_name);
+
 static void right(char *dst, char *src, int n);
 
 static int buffer_size = 0;
@@ -70,9 +80,11 @@ int main(int argc, char *argv[]) {
     int is_config_file = 0;
     int is_bs = 0;
 
-    int arg;
+    int arg = 0;
     int bs_value = 0;
-    for(arg = 0; arg < argc; arg++){
+
+    //precess arguments
+    for(; arg < argc; arg++){
         if(argv[arg][0] == '-'){
             if(argv[arg][1] == 'd'){ //-d option
                 local_dir = argv[++arg];
@@ -83,11 +95,16 @@ int main(int argc, char *argv[]) {
             }else if(argv[arg][1] == 'c'){
                 conf_file = argv[++arg];
                 is_config_file = 1;
+            }else if(argv[arg][1] > 'd'){
+                printf("Not valid argument\n");
+                usage();
+                return -1;
             }
         }
     }
 
     struct rcp_config *conf = NULL;
+
     if(is_config_file){
         conf = config_read(conf_file);
     }else { // no config file
@@ -95,16 +112,17 @@ int main(int argc, char *argv[]) {
 //        printf("test: %s\n", argv[argc-1]);
         char *split_index = strstr(argv[argc-1], ":/");
         split_index++;
+
         int len = strcspn(argv[argc-1], ":/");
         strncpy(conf->remote_ip, argv[argc-1], len);
         strcpy(conf->target_dir, split_index);
+
         if(!is_bs){ // no -b
             conf->bs = BUFFER_SIZE_DEFAULT;
         }else{
             conf->bs = bs_value;
         }
     }
-
 
 
     if (conf == NULL)
@@ -140,11 +158,14 @@ int main(int argc, char *argv[]) {
 
     buffer_size = conf->bs;
     if(buffer_size <= 0 || buffer_size > BUFFER_SIZE_MAX){
+#ifdef _DEBUG
         printf("buffer size error\n");
+#endif
         return -1;
     }
 
     struct client_context ctx;//user define
+
     rc_init(on_pre_conn, NULL, on_completion, NULL);//common.c
 
     printf("RDMA is sending files, please wait a moment!\n");
@@ -152,6 +173,7 @@ int main(int argc, char *argv[]) {
     rc_client_loop(conf->remote_ip, DEFAULT_PORT, &ctx);
 
     close(ctx.fd);
+
     printf("ALL files were sent to %s:%s\n", conf->remote_ip, conf->target_dir);
     return 0;
 
@@ -165,10 +187,16 @@ void on_pre_conn(struct rdma_cm_id *id) {
     struct client_context *ctx = (struct client_context *) id->context;
 
     posix_memalign((void **) &ctx->buffer, sysconf(_SC_PAGESIZE), buffer_size);
-    TEST_Z(ctx->buffer_mr = ibv_reg_mr(rc_get_pd(), ctx->buffer, buffer_size, IBV_ACCESS_LOCAL_WRITE));
+    TEST_Z(ctx->buffer_mr = ibv_reg_mr(rc_get_pd(),
+                                       ctx->buffer,
+                                       buffer_size,
+                                       IBV_ACCESS_LOCAL_WRITE));
 
     posix_memalign((void **) &ctx->msg, sysconf(_SC_PAGESIZE), sizeof(*ctx->msg));
-    TEST_Z(ctx->msg_mr = ibv_reg_mr(rc_get_pd(), ctx->msg, sizeof(*ctx->msg),
+
+    TEST_Z(ctx->msg_mr = ibv_reg_mr(rc_get_pd(),
+                                    ctx->msg,
+                                    sizeof(*ctx->msg),
                                     IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE));
 
     post_receive(id);
@@ -192,7 +220,7 @@ void write_remote(struct rdma_cm_id *id, uint32_t len) {
     wr.wr.rdma.remote_addr = ctx->peer_addr;
     wr.wr.rdma.rkey = ctx->peer_rkey;
 
-//tag by zhao:len是文件名的长度，这个判断会成立
+//len是文件名的长度，这个判断会成立
     if (len) {
         wr.sg_list = &sge;
         wr.num_sge = 1;
@@ -201,6 +229,7 @@ void write_remote(struct rdma_cm_id *id, uint32_t len) {
         sge.length = len;
         sge.lkey = ctx->buffer_mr->lkey;
     }
+
     TEST_NZ(ibv_post_send(id->qp, &wr, &bad_wr));
 }
 
@@ -303,7 +332,6 @@ void send_file_name(struct rdma_cm_id *id) {
 
 }
 
-
 void send_next_chunk_origin(struct rdma_cm_id *id) {
     struct client_context *ctx = (struct client_context *) id->context;
 
@@ -319,10 +347,6 @@ void send_next_chunk_origin(struct rdma_cm_id *id) {
 }
 
 
-
-
-
-
 void usage()
 {
     fprintf(stderr, "usage:   rcp [-d] file1 [-b block_size] [-c config_file] [remote_ip:]file2\n\n");
@@ -331,6 +355,7 @@ void usage()
 }
 
 
+/
 void read_dir(char *dir_name)
 {
     char buf[128];
@@ -381,29 +406,29 @@ void right(char *dst, char *src, int n)
 }
 
 
-//void send_next_chunk(struct rdma_cm_id *id) {
-//
-//    char buf[1024];
-//    struct client_context *ctx = (struct client_context *) id->context;
-//    ssize_t size = 0;
-//    //size = read(ctx->fd, ctx->buffer, BUFFER_SIZE);
-//#ifdef DEBUG
-//    printf("send chunk: %s\n", ctx->buffer);
-//#endif
-//    fgets(buf, sizeof(buf), stdin);
-//    size = strlen(buf);
-//
-//    buf[strlen(buf)] = '\0';
-//    //*ctx->buffer = 'x';
-//    strcpy(ctx->buffer, buf);
-//    //memcpy(&ctx->buffer, buf, strlen(buf));
-//
-//
-//    if (size == -1)
-//        rc_die("send chunk: read error");
-//
-//    printf("next chunk: %ld, %ld\n", size, strlen(ctx->buffer));
-//    if (strcmp(buf, "exit\n") == 0)
-//        size = 0;
-//    write_remote(id, size);
-//}
+void send_next_chunk(struct rdma_cm_id *id) {
+
+    char buf[1024];
+    struct client_context *ctx = (struct client_context *) id->context;
+    ssize_t size = 0;
+    //size = read(ctx->fd, ctx->buffer, BUFFER_SIZE);
+#ifdef DEBUG
+    printf("send chunk: %s\n", ctx->buffer);
+#endif
+    fgets(buf, sizeof(buf), stdin);
+    size = strlen(buf);
+
+    buf[strlen(buf)] = '\0';
+    //*ctx->buffer = 'x';
+    strcpy(ctx->buffer, buf);
+    //memcpy(&ctx->buffer, buf, strlen(buf));
+
+
+    if (size == -1)
+        rc_die("send chunk: read error");
+
+    printf("next chunk: %ld, %ld\n", size, strlen(ctx->buffer));
+    if (strcmp(buf, "exit\n") == 0)
+        size = 0;
+    write_remote(id, size);
+}

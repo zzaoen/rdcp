@@ -19,9 +19,11 @@ struct conn_context {
 };
 
 static void send_message(struct rdma_cm_id *id) {
+
 	struct conn_context *ctx = (struct conn_context *) id->context;
 
 	struct ibv_send_wr wr, *bad_wr = NULL;
+
 	struct ibv_sge sge;
 
 	memset(&wr, 0, sizeof(wr));
@@ -63,11 +65,16 @@ static void on_pre_conn(struct rdma_cm_id *id) {
 
 	//set up buffer size??
 	posix_memalign((void **) &ctx->buffer, sysconf(_SC_PAGESIZE), BUFFER_SIZE);
-	TEST_Z(ctx->buffer_mr = ibv_reg_mr(rc_get_pd(), ctx->buffer, BUFFER_SIZE,
+	TEST_Z(ctx->buffer_mr = ibv_reg_mr(rc_get_pd(),
+                                       ctx->buffer,
+                                       BUFFER_SIZE,
 									   IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE));
 
 	posix_memalign((void **) &ctx->msg, sysconf(_SC_PAGESIZE), sizeof(*ctx->msg));
-	TEST_Z(ctx->msg_mr = ibv_reg_mr(rc_get_pd(), ctx->msg, sizeof(*ctx->msg),
+
+	TEST_Z(ctx->msg_mr = ibv_reg_mr(rc_get_pd(),
+                                    ctx->msg,
+                                    sizeof(*ctx->msg),
 									IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE));
 
 	post_receive(id);
@@ -149,7 +156,9 @@ static void on_completion(struct ibv_wc *wc) {
 #ifdef _DEBUG
 				printf("opening file :%s\n", ctx->file_name);
 #endif
-				ctx->fd = open(ctx->file_name, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+				ctx->fd = open(ctx->file_name,
+							   O_WRONLY | O_CREAT,
+							   S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
 //				if (ctx->fd == -1){
 //				rc_die("open() failed");
@@ -191,7 +200,8 @@ int main(int argc, char **argv) {
 			on_pre_conn,
 			on_connection,
 			on_completion,
-			on_disconnect);
+			on_disconnect
+    );
 
 	printf("waiting for connections. interrupt (^C) to exit.\n");
 

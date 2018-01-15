@@ -1,4 +1,10 @@
 #include "common.h"
+#include <netdb.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include "read_cfg.h"
 
 const int TIMEOUT_IN_MS = 500;
 
@@ -12,9 +18,13 @@ struct context {
 };
 
 static struct context *s_ctx = NULL;
+
 static pre_conn_cb_fn s_on_pre_conn_cb = NULL;
+
 static connect_cb_fn s_on_connect_cb = NULL;
+
 static completion_cb_fn s_on_completion_cb = NULL;
+
 static disconnect_cb_fn s_on_disconnect_cb = NULL;
 
 static void build_context(struct ibv_context *verbs);
@@ -159,10 +169,12 @@ void event_loop(struct rdma_event_channel *ec, int exit_on_disconnect) {
 
 //used in build_context function
 void *poll_cq(void *ctx) {
+
     struct ibv_cq *cq;
     struct ibv_wc wc;
 
     while (1) {
+
         TEST_NZ(ibv_get_cq_event(s_ctx->comp_channel, &cq, &ctx));
         ibv_ack_cq_events(cq, 1);
         TEST_NZ(ibv_req_notify_cq(cq, 0));
@@ -191,11 +203,17 @@ void rc_client_loop(const char *host, const char *port, void *context) {
     struct rdma_event_channel *ec = NULL;
     struct rdma_conn_param cm_params;
 
-    TEST_NZ(getaddrinfo(host, port, NULL, &addr));
+    int tmp_rdma_resutl  = 0;
+    tmp_rdma_resutl = getaddrinfo(host, port, NULL, &addr);
+    TEST_NZ(tmp_rdma_resutl);
 
     TEST_Z(ec = rdma_create_event_channel());
-    TEST_NZ(rdma_create_id(ec, &conn, NULL, RDMA_PS_TCP));
-    TEST_NZ(rdma_resolve_addr(conn, NULL, addr->ai_addr, TIMEOUT_IN_MS));
+
+    tmp_rdma_resutl = rdma_create_id(ec, &conn, NULL, RDMA_PS_TCP);
+    TEST_NZ(tmp_rdma_resutl);
+
+    tmp_rdma_resutl = rdma_resolve_addr(conn, NULL, addr->ai_addr, TIMEOUT_IN_MS);
+    TEST_NZ(tmp_rdma_resutl);
 
     freeaddrinfo(addr);
 
@@ -225,8 +243,10 @@ void rc_server_loop(const char *port) {
     TEST_NZ(rdma_bind_addr(listener, (struct sockaddr *) &addr));
     TEST_NZ(rdma_listen(listener, 10)); /* backlog=10 is arbitrary */
 
-//0 means disconnect will not stop program, 1 means stop program
-//this is a real loop wait client's message
+// 0 means disconnect will not stop program,
+// 1 means stop program
+// this is a real loop wait client's message
+
     event_loop(ec, 0); // don't exit on disconnect
 
     rdma_destroy_id(listener);
@@ -234,11 +254,16 @@ void rc_server_loop(const char *port) {
 }
 
 void rc_disconnect(struct rdma_cm_id *id) {
+#ifdef _DEBUG
+    printf("rc_disconnect\n");
+#endif
     rdma_disconnect(id);
 }
 
 void rc_die(const char *reason) {
+#ifdef _DEBUG
     fprintf(stderr, "%s\n", reason);
+#endif
     exit(EXIT_FAILURE);
 }
 
