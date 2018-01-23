@@ -355,7 +355,6 @@ void usage()
 }
 
 
-/
 void read_dir(char *dir_name)
 {
     char buf[128];
