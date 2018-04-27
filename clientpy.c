@@ -135,11 +135,10 @@ int main(int argc, char *argv[]) {
 //    printf("remote_ip: %s target_dir: %s bs: %d\n", conf->remote_ip, conf->target_dir, conf->bs);
 
 
-//    这里是Python使用的用来从临时文件读取RDMA发送的文件信息
-//    rdma_files();
+    rdma_files();
 
 
-    char tmp_relative_path[FILE_NAME_LENGTH];
+    /*char tmp_relative_path[FILE_NAME_LENGTH];
     if(is_send_dir){//-d send a dir
 
 //read_dir函数根据指定的目录读出所有的文件名
@@ -163,10 +162,11 @@ int main(int argc, char *argv[]) {
         file_or_dir[0] = 101;
         strcpy(target_files[0], conf->target_dir);
         strcat(target_files[0], argv[1]);
-    }
-
+    }*/
 
     buffer_size = conf->bs;
+    printf("%d\n", buffer_size);
+
     if(buffer_size <= 0 || buffer_size > BUFFER_SIZE_MAX){
 #ifdef _DEBUG
         printf("buffer size error\n");
@@ -218,7 +218,7 @@ void rdma_files(){
 
     int i = 0;
     for(; i < index; i++){
-        printf("%s %s", files[i], target_files[i]);
+        printf("%s\t%s\n", files[i], target_files[i]);
     }
 
 }
@@ -392,9 +392,9 @@ void send_next_chunk_origin(struct rdma_cm_id *id) {
 
 void usage()
 {
-    fprintf(stderr, "usage:   rdcp [-d] file1 [-b block_size] [-c config_file] [remote_ip:]file2\n\n");
-    fprintf(stderr, "e.g. :   rdcp -d /home/user1/dir1/ -b 1024 192.168.0.110:/home/user2/dir2/\n");
-    fprintf(stderr, "     :   rdcp /home/user1/file1/ -b 1024 -c /home/user/rcp.cfg\n");
+    fprintf(stderr, "usage:   rdcppy [-d] file1 [-b block_size] [-c config_file] [remote_ip:]file2\n\n");
+    fprintf(stderr, "e.g. :   rdcppy -d /home/user1/dir1/ -b 1024 192.168.0.110:/home/user2/dir2/\n");
+    fprintf(stderr, "     :   rdcppy /home/user1/file1/ -b 1024 -c /home/user/rcp.cfg\n");
 }
 
 

@@ -1,0 +1,3 @@
+/home/lab2/CLionProjects/rdcp/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+/home/lab2/CLionProjects/rdcp/cmake-build-debug/CMakeFiles/edit_cache.dir
+/home/lab2/CLionProjects/rdcp/cmake-build-debug/CMakeFiles/rdcp.dir
